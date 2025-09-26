@@ -485,7 +485,7 @@ export const WorkerJobBubble: React.FC<WorkerJobBubbleProps> = ({
           <Text style={styles.sectionTitle}>Your Bid:</Text>
           
           <View style={styles.inputContainer}>
-            <Text style={styles.inputLabel}>Base Amount ($)</Text>
+            <Text style={styles.inputLabel}>Base Amount (MRU)</Text>
             <TextInput
               style={[
                 styles.input,
@@ -507,7 +507,7 @@ export const WorkerJobBubble: React.FC<WorkerJobBubbleProps> = ({
           </View>
 
           <View style={styles.inputContainer}>
-            <Text style={styles.inputLabel}>Equipment Cost ($) - Optional</Text>
+            <Text style={styles.inputLabel}>Equipment Cost (MRU) - Optional</Text>
             <TextInput
               style={styles.input}
               value={equipmentCost}
@@ -523,7 +523,7 @@ export const WorkerJobBubble: React.FC<WorkerJobBubbleProps> = ({
             <View style={styles.bidSummary}>
               <Text style={styles.summaryLabel}>Total Bid:</Text>
               <Text style={styles.summaryAmount}>
-                ${(Number(bidAmount) + (Number(equipmentCost) || 0)).toFixed(2)}
+                {(Number(bidAmount) + (Number(equipmentCost) || 0)).toFixed(2)} MRU
               </Text>
             </View>
           )}
@@ -561,23 +561,23 @@ export const WorkerJobBubble: React.FC<WorkerJobBubbleProps> = ({
             <View style={styles.bidDetailsCard}>
               <View style={styles.bidDetailRow}>
                 <Text style={styles.bidDetailLabel}>Base Amount:</Text>
-                <Text style={styles.bidDetailValue}>${jobData.bidAmount.toFixed(2)}</Text>
+                <Text style={styles.bidDetailValue}>{jobData.bidAmount.toFixed(2)} MRU</Text>
               </View>
               {jobData.bidEquipmentCost && jobData.bidEquipmentCost > 0 && (
                 <View style={styles.bidDetailRow}>
                   <Text style={styles.bidDetailLabel}>Equipment:</Text>
-                  <Text style={styles.bidDetailValue}>${jobData.bidEquipmentCost.toFixed(2)}</Text>
+                  <Text style={styles.bidDetailValue}>{jobData.bidEquipmentCost.toFixed(2)} MRU</Text>
                 </View>
               )}
               {jobData.bidServiceFee && (
                 <View style={styles.bidDetailRow}>
                   <Text style={styles.bidDetailLabel}>Service Fee:</Text>
-                  <Text style={styles.bidDetailValue}>${jobData.bidServiceFee.toFixed(2)}</Text>
+                  <Text style={styles.bidDetailValue}>{jobData.bidServiceFee.toFixed(2)} MRU</Text>
                 </View>
               )}
               <View style={[styles.bidDetailRow, styles.totalRow]}>
                 <Text style={styles.bidTotalLabel}>Total:</Text>
-                <Text style={styles.bidTotalValue}>${jobData.bidTotalAmount?.toFixed(2) || '0.00'}</Text>
+                <Text style={styles.bidTotalValue}>{jobData.bidTotalAmount?.toFixed(2) || '0.00'} MRU</Text>
               </View>
             </View>
           )}
@@ -603,7 +603,7 @@ export const WorkerJobBubble: React.FC<WorkerJobBubbleProps> = ({
           {jobData.bidTotalAmount && (
             <View style={styles.acceptedAmountCard}>
               <Text style={styles.acceptedAmountLabel}>Winning Bid:</Text>
-              <Text style={styles.acceptedAmountValue}>${jobData.bidTotalAmount.toFixed(2)}</Text>
+              <Text style={styles.acceptedAmountValue}>{jobData.bidTotalAmount.toFixed(2)} MRU</Text>
             </View>
           )}
           

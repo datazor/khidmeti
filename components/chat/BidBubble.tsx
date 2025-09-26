@@ -207,7 +207,7 @@ export const BidBubble: React.FC<BidBubbleProps> = ({
   };
 
   // Format currency
-  const formatCurrency = (amount: number) => `$${amount.toFixed(2)}`;
+  const formatCurrency = (amount: number) => `${amount.toFixed(2)} MRU`;
 
   // Status-based styling
   const statusConfig = useMemo(() => 
