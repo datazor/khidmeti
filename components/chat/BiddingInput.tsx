@@ -1,21 +1,21 @@
 // components/worker/BiddingInput.tsx - Clean professional bid input with real-time validation
-import React, { useState, useCallback, useMemo, useEffect } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TextInput,
-  Pressable,
-  ActivityIndicator,
-  ViewStyle,
-  TextStyle,
-} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  ActivityIndicator,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  TextStyle,
+  View,
+  ViewStyle,
+} from 'react-native';
 import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withSpring,
   interpolateColor,
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
 } from 'react-native-reanimated';
 import { Id } from '../../convex/_generated/dataModel';
 
@@ -184,7 +184,7 @@ export const BiddingInput: React.FC<BiddingInputProps> = ({
         </Text>
         <Animated.View style={[styles.inputContainer, bidInputAnimatedStyle]}>
           <View style={styles.currencyPrefix}>
-            <Text style={styles.currencyText}>$</Text>
+            <Text style={styles.currencyText}>MRU</Text>
           </View>
           <TextInput
             style={[styles.input, isRTL && styles.inputRTL]}
@@ -204,7 +204,7 @@ export const BiddingInput: React.FC<BiddingInputProps> = ({
           )}
         </Animated.View>
         <Text style={[styles.helperText, isRTL && styles.helperTextRTL]}>
-          Minimum: ${priceFloor.toFixed(2)}
+          Minimum: {priceFloor.toFixed(2)} MRU
         </Text>
       </View>
 
@@ -215,7 +215,7 @@ export const BiddingInput: React.FC<BiddingInputProps> = ({
         </Text>
         <View style={styles.inputContainer}>
           <View style={styles.currencyPrefix}>
-            <Text style={styles.currencyText}>$</Text>
+            <Text style={styles.currencyText}>MRU</Text>
           </View>
           <TextInput
             style={[styles.input, isRTL && styles.inputRTL]}
@@ -259,17 +259,17 @@ export const BiddingInput: React.FC<BiddingInputProps> = ({
         <View style={styles.summaryContainer}>
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Base Bid:</Text>
-            <Text style={styles.summaryValue}>${bidValue.toFixed(2)}</Text>
+            <Text style={styles.summaryValue}>{bidValue.toFixed(2)} MRU</Text>
           </View>
           {equipmentValue > 0 && (
             <View style={styles.summaryRow}>
               <Text style={styles.summaryLabel}>Equipment:</Text>
-              <Text style={styles.summaryValue}>${equipmentValue.toFixed(2)}</Text>
+              <Text style={styles.summaryValue}>{equipmentValue.toFixed(2)} MRU</Text>
             </View>
           )}
           <View style={[styles.summaryRow, styles.summaryTotal]}>
             <Text style={styles.summaryTotalLabel}>Total Bid:</Text>
-            <Text style={styles.summaryTotalValue}>${totalBid.toFixed(2)}</Text>
+            <Text style={styles.summaryTotalValue}>{totalBid.toFixed(2)} MRU</Text>
           </View>
         </View>
       )}
