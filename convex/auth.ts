@@ -93,6 +93,28 @@ export const incrementOTPAttempts = mutation({
   },
 });
 
+export const resetOTPAttempts = mutation({
+  args: {
+    otpId: v.id("otps"),
+  },
+  handler: async (ctx, args) => {
+    // Get the current OTP record to ensure it exists
+    const currentOTP = await ctx.db.get(args.otpId);
+    
+    if (!currentOTP) {
+      throw new Error("OTP record not found");
+    }
+    
+    // Reset attempts to 0 and update created_at to current time
+    await ctx.db.patch(args.otpId, {
+      attempts: 0,
+      created_at: Date.now(),
+    });
+    
+    return true;
+  },
+});
+
 export const getOTPByPhone = query({
   args: {
     phone: v.string(),

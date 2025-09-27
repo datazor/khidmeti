@@ -157,28 +157,27 @@ function useSignUpHook(): SignUpState & SignUpActions {
     setState(prev => ({ ...prev, isLoading: true, error: null }));
     
     try {
-      // Validate OTP
+      // Validate OTP - now returns boolean instead of object
       const isValidOTP = await validateOTP({ 
         phone: state.phone, 
         code 
       });
       
-      if (!isValidOTP) {
+      if (isValidOTP) {
+        // Move to combined profile completion screen
+        setState(prev => ({
+          ...prev,
+          step: 'profile',
+          isLoading: false,
+        }));
+        router.push('/(auth)/profile');
+      } else {
         setState(prev => ({
           ...prev,
           isLoading: false,
           error: 'Invalid OTP code. Please try again.',
         }));
-        return;
       }
-     
-      // Move to combined profile completion screen
-      setState(prev => ({
-        ...prev,
-        step: 'profile',
-        isLoading: false,
-      }));
-       router.push('/(auth)/profile');
     } catch (error) {
       setState(prev => ({
         ...prev,

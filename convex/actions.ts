@@ -1,10 +1,10 @@
 // convex/actions.ts
-import { action, internalMutation } from "./_generated/server";
-import { api, internal } from "./_generated/api";
+import { compare, hash } from "bcryptjs";
 import { v } from "convex/values";
-import { hash, compare } from "bcryptjs";
 import { validateMauritanianMobile } from "../lib/phoneValidation";
+import { api, internal } from "./_generated/api";
 import { Id } from "./_generated/dataModel";
+import { action, internalMutation } from "./_generated/server";
 
 /**
  * Generates and stores a One-Time Password (OTP) using Convex actions.
@@ -65,7 +65,24 @@ export const validateOTP = action({
     });
 
     if (!validOTP) {
-      return { valid: false, error: "Invalid or expired OTP" };
+      throw new Error("Invalid or expired OTP");
+    }
+
+    // Check lockout BEFORE attempting validation (3 attempts max)
+    if (validOTP.attempts >= 3) {
+      const timeSinceLastAttempt = Date.now() - validOTP.created_at;
+      const lockoutDuration = 20 * 60 * 1000; // 20 minutes in milliseconds
+      const timeRemaining = lockoutDuration - timeSinceLastAttempt;
+      
+      if (timeRemaining > 0) {
+        const minutesRemaining = Math.ceil(timeRemaining / (60 * 1000));
+        throw new Error(`Too many attempts. Please wait ${minutesRemaining} minutes.`);
+      } else {
+        // Reset attempts if lockout period has passed
+        await ctx.runMutation(api.auth.resetOTPAttempts, {
+          otpId: validOTP._id,
+        });
+      }
     }
 
     // Compare the submitted code with the stored hash using bcrypt
@@ -75,16 +92,20 @@ export const validateOTP = action({
       await ctx.runMutation(api.auth.markOTPVerified, {
         otpId: validOTP._id,
       });
-      return { valid: true };
+      return true;
     } else {
-      // Remove the currentAttempts parameter - let the mutation handle it
       const newAttemptCount = await ctx.runMutation(api.auth.incrementOTPAttempts, {
         otpId: validOTP._id,
       });
       
       console.log(`OTP attempt failed for ${args.phone}. Attempts: ${newAttemptCount}`);
       
-      return { valid: false, error: "Incorrect code" };
+      // Check if this was the 3rd failed attempt
+      if (newAttemptCount >= 3) {
+        throw new Error("Too many attempts. Please wait 20 minutes.");
+      }
+      
+      return false;
     }
   },
 });
