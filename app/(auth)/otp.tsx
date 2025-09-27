@@ -268,23 +268,35 @@ export default function OTPVerificationScreen() {
     setIsResending(true);
     
     try {
-      // Reset timer and OTP
+      // Reset UI state
       setTimer(60);
       setCanResend(false);
       setOTP('');
       timerProgress.value = withTiming(1, { duration: 300 });
       
-      // Haptic feedback
+      // Actually send the OTP - THIS IS WHAT'S MISSING
+      await signUp.sendOTP(signUp.phone);
+      
+      // Success feedback
       Vibration.vibrate(50);
       
-      // Simulate resend API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
     } catch (error) {
+      // Show error to user
+      const errorMessage = error instanceof Error 
+        ? error.message 
+        : 'Failed to resend code. Please try again.';
+      
+      // Could add a toast/alert here or update signUp.error
+      console.error('Resend OTP failed:', errorMessage);
+      
+      // Reset timer so user can try again
+      setCanResend(true);
+      setTimer(0);
+      
     } finally {
       setIsResending(false);
     }
-  }, [canResend, isResending]);
+  }, [canResend, isResending, signUp, timerProgress]); // Complete dependencies
   
   const handleGoBack = useCallback(() => {
     signUp.goBack();
