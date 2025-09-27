@@ -288,7 +288,7 @@ export default function OTPVerificationScreen() {
   
   const handleGoBack = useCallback(() => {
     signUp.goBack();
-    router.back();
+    router.back(); 
   }, [router]);
   
   // Computed values

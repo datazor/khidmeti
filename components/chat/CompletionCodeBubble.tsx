@@ -1,15 +1,13 @@
 // components/chat/CompletionCodeBubble.tsx - Code input bubble for job completion
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
-  TextInput,
   Pressable,
   StyleSheet,
   ViewStyle,
   TextStyle,
   Alert,
-  Keyboard,
 } from 'react-native';
 import Animated, {
   useSharedValue,
@@ -19,6 +17,12 @@ import Animated, {
   withDelay,
 } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
+import {
+  CodeField,
+  Cursor,
+  useBlurOnFulfill,
+  useClearByFocusCell,
+} from 'react-native-confirmation-code-field';
 import { useLocalization } from '@/constants/localization';
 import { Id } from '../../convex/_generated/dataModel';
 
@@ -102,7 +106,7 @@ interface CompletionCodeBubbleProps {
   onCodeSubmit: (code: string, jobId: Id<'jobs'>) => Promise<void>;
   onValidationError?: (error: string) => void;
   disabled?: boolean;
-  delay?: number; // Add delay prop for staggered animation
+  delay?: number;
 }
 
 export const CompletionCodeBubble: React.FC<CompletionCodeBubbleProps> = ({
@@ -117,18 +121,24 @@ export const CompletionCodeBubble: React.FC<CompletionCodeBubbleProps> = ({
   onCodeSubmit,
   onValidationError,
   disabled = false,
-  delay = 0, // Default to no delay
+  delay = 0,
 }) => {
   const { t } = useLocalization();
   const [code, setCode] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [hasError, setHasError] = useState(false);
-  const inputRef = useRef<TextInput>(null);
   
   // Reanimated shared values for animations
   const shakeOffset = useSharedValue(0);
   const opacity = useSharedValue(0);
   const scale = useSharedValue(0.8);
+
+  // Use library hooks for better focus management
+  const ref = useBlurOnFulfill({ value: code, cellCount: maxLength });
+  const [props, getCellOnLayoutHandler] = useClearByFocusCell({
+    value: code,
+    setValue: setCode,
+  });
   
   // Reanimated styles
   const shakeStyle = useAnimatedStyle(() => ({
@@ -146,42 +156,11 @@ export const CompletionCodeBubble: React.FC<CompletionCodeBubbleProps> = ({
     scale.value = withDelay(delay, withTiming(1, { duration: 300 }));
   }, [delay, opacity, scale]);
 
-  // Keyboard management to avoid conflicts
-  useEffect(() => {
-    // Dismiss keyboard first to avoid conflicts
-    Keyboard.dismiss();
-    
-    // Delay focus until after component mounts and animations complete
-    const focusTimer = setTimeout(() => {
-      inputRef.current?.focus();
-    }, 300);
-    
-    return () => clearTimeout(focusTimer);
-  }, []);
-
   // Format timestamp
   const formatTime = useCallback((timestamp: number): string => {
     const date = new Date(timestamp);
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   }, []);
-
-  // Handle code input with numeric validation
-  const handleCodeChange = useCallback((input: string) => {
-    // Only allow numeric characters
-    const numericInput = input.replace(/[^0-9]/g, '');
-    
-    // Limit to maxLength
-    const limitedInput = numericInput.slice(0, maxLength);
-    
-    setCode(limitedInput);
-    setHasError(false);
-
-    // Auto-submit when code reaches maxLength
-    if (limitedInput.length === maxLength) {
-      Keyboard.dismiss();
-      handleSubmitCode(limitedInput);
-    }
-  }, [maxLength]);
 
   // Shake animation for errors using reanimated
   const triggerShakeAnimation = useCallback(() => {
@@ -194,9 +173,7 @@ export const CompletionCodeBubble: React.FC<CompletionCodeBubbleProps> = ({
   }, [shakeOffset]);
 
   // Handle code submission
-  const handleSubmitCode = useCallback(async (codeToSubmit?: string) => {
-    const finalCode = codeToSubmit || code;
-    
+  const handleSubmitCode = useCallback(async (finalCode: string) => {
     if (finalCode.length < maxLength) {
       setHasError(true);
       triggerShakeAnimation();
@@ -212,7 +189,7 @@ export const CompletionCodeBubble: React.FC<CompletionCodeBubbleProps> = ({
     try {
       await onCodeSubmit(finalCode, jobId);
       // Success - bubble will expire and disappear
-      setCode(''); // Clear input
+      setCode('');
     } catch (error) {
       console.error('Code submission failed:', error);
       setHasError(true);
@@ -223,53 +200,28 @@ export const CompletionCodeBubble: React.FC<CompletionCodeBubbleProps> = ({
       
       // Clear the code on error to allow re-entry
       setCode('');
-      
-      // Refocus input after error
-      setTimeout(() => {
-        inputRef.current?.focus();
-      }, 500);
     } finally {
       setIsSubmitting(false);
     }
-  }, [code, maxLength, isSubmitting, disabled, onCodeSubmit, jobId, triggerShakeAnimation, onValidationError]);
+  }, [maxLength, isSubmitting, disabled, onCodeSubmit, jobId, triggerShakeAnimation, onValidationError]);
+
+  // Handle code change with auto-submit
+  const handleCodeChange = useCallback((text: string) => {
+    setCode(text);
+    setHasError(false);
+
+    // Auto-submit when complete
+    if (text.length === maxLength) {
+      handleSubmitCode(text);
+    }
+  }, [maxLength, handleSubmitCode]);
 
   // Manual submit button handler
   const handleManualSubmit = useCallback(() => {
     if (code.length === maxLength) {
-      handleSubmitCode();
+      handleSubmitCode(code);
     }
   }, [code, maxLength, handleSubmitCode]);
-
-  // Generate placeholder dots
-  const renderCodeInputDots = () => {
-    const dots = [];
-    for (let i = 0; i < maxLength; i++) {
-      const hasValue = i < code.length;
-      const isActive = i === code.length;
-      
-      dots.push(
-        <View
-          key={i}
-          style={[
-            styles.codeDot,
-            hasValue && styles.codeDotFilled,
-            isActive && styles.codeDotActive,
-            hasError && styles.codeDotError,
-          ]}
-        >
-          {hasValue && (
-            <Text style={[
-              styles.codeDigit,
-              hasError && styles.codeDigitError,
-            ]}>
-              {code[i]}
-            </Text>
-          )}
-        </View>
-      );
-    }
-    return dots;
-  };
 
   const containerStyle = [
     styles.container,
@@ -304,38 +256,37 @@ export const CompletionCodeBubble: React.FC<CompletionCodeBubbleProps> = ({
           {instruction}
         </Text>
 
-        {/* Code Input Area */}
-        <View style={styles.codeInputContainer}>
-          {/* Visual dots display */}
-          <View style={[styles.codeDotsContainer, isRTL && styles.codeDotsContainerRTL]}>
-            {renderCodeInputDots()}
-          </View>
-
-          {/* Hidden text input for numeric keypad */}
-          <TextInput
-            ref={inputRef}
-            style={styles.hiddenInput}
-            value={code}
-            onChangeText={handleCodeChange}
-            keyboardType="numeric"
-            maxLength={maxLength}
-            autoFocus={true}
-            caretHidden={true}
-            selection={{ start: code.length, end: code.length }}
-            editable={!disabled && !isSubmitting}
-            returnKeyType="done"
-            onSubmitEditing={handleManualSubmit}
-          />
-
-          {/* Tap area to focus input */}
-          <Pressable 
-            style={styles.tapArea}
-            onPress={() => inputRef.current?.focus()}
-            disabled={disabled || isSubmitting}
-          >
-            <View style={styles.tapAreaOverlay} />
-          </Pressable>
-        </View>
+        {/* Code Input Area - Using react-native-confirmation-code-field */}
+        <CodeField
+          ref={ref}
+          {...props}
+          value={code}
+          onChangeText={handleCodeChange}
+          cellCount={maxLength}
+          rootStyle={styles.codeFieldRoot}
+          keyboardType="number-pad"
+          textContentType="oneTimeCode"
+          editable={!disabled && !isSubmitting}
+          renderCell={({ index, symbol, isFocused }) => (
+            <View
+              key={index}
+              onLayout={getCellOnLayoutHandler(index)}
+              style={[
+                styles.codeDot,
+                isFocused && styles.codeDotActive,
+                hasError && styles.codeDotError,
+                symbol && styles.codeDotFilled,
+              ]}
+            >
+              <Text style={[
+                styles.codeDigit,
+                hasError && styles.codeDigitError,
+              ]}>
+                {symbol || (isFocused ? <Cursor /> : null)}
+              </Text>
+            </View>
+          )}
+        />
 
         {/* Status message */}
         {hasError && (
@@ -356,7 +307,7 @@ export const CompletionCodeBubble: React.FC<CompletionCodeBubbleProps> = ({
           </View>
         )}
 
-        {/* Manual submit button (shown only when code is complete but not auto-submitted) */}
+        {/* Manual submit button */}
         {code.length === maxLength && !isSubmitting && !hasError && (
           <Pressable
             onPress={handleManualSubmit}
@@ -447,33 +398,20 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   } as TextStyle,
 
-  codeInputContainer: {
-    alignItems: 'center',
-    marginBottom: SPACING.md,
-    position: 'relative',
-  } as ViewStyle,
-
-  codeDotsContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: SPACING.md,
-  } as ViewStyle,
-
-  codeDotsContainerRTL: {
-    flexDirection: 'row-reverse',
+  codeFieldRoot: {
+    marginVertical: SPACING.md,
+    gap: SPACING.xs,
   } as ViewStyle,
 
   codeDot: {
-    width: 40,
-    height: 48,
-    borderRadius: 8,
+    width: 32,
+    height: 40,
+    borderRadius: 6,
     borderWidth: 2,
     borderColor: COLORS.gray300,
     backgroundColor: COLORS.gray50,
     alignItems: 'center',
     justifyContent: 'center',
-    position: 'relative',
   } as ViewStyle,
 
   codeDotFilled: {
@@ -494,34 +432,13 @@ const styles = StyleSheet.create({
   codeDigit: {
     ...TYPOGRAPHY.code,
     color: COLORS.primary,
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '700',
   } as TextStyle,
 
   codeDigitError: {
     color: COLORS.error,
   } as TextStyle,
-
-  hiddenInput: {
-    position: 'absolute',
-    left: -9999,
-    opacity: 0,
-    width: 1,
-    height: 1,
-  } as TextStyle,
-
-  tapArea: {
-    position: 'absolute',
-    top: -10,
-    left: -10,
-    right: -10,
-    bottom: -10,
-  } as ViewStyle,
-
-  tapAreaOverlay: {
-    flex: 1,
-    backgroundColor: 'transparent',
-  } as ViewStyle,
 
   errorContainer: {
     flexDirection: 'row',

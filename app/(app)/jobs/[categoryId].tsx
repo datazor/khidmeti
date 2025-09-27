@@ -140,7 +140,7 @@ export default function JobFeedScreen() {
             <View style={styles.statItem}>
               <Ionicons name="wallet" size={14} color={COLORS.success} />
               <Text style={styles.balanceText}>
-                ${getWorkerBalance().toFixed(2)}
+                {getWorkerBalance().toFixed(2)} MRU
               </Text>
             </View>
             <View style={styles.statDivider} />
