@@ -1,18 +1,17 @@
 // components/chat/VoiceMessageBubble.tsx
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import {
-  View,
-  Text,
-  Pressable,
-  StyleSheet,
-  ViewStyle,
-  TextStyle,
-  Image,
-  PanResponder,
-} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
-import { Audio } from 'expo-av';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  Image,
+  PanResponder,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextStyle,
+  View,
+  ViewStyle,
+} from 'react-native';
 
 // Design System
 const COLORS = {
@@ -202,14 +201,17 @@ export function VoiceMessageBubble({
     }
   }, [isPlaying, isLoading, hasFinished, player, onPlaybackStart, onPlaybackEnd]);
   
-  // Auto-reset when finished - simplified approach
+  // Reset to beginning when finished (without auto-play)
   useEffect(() => {
     if (hasFinished) {
-      // Use functional update to avoid dependency on onPlaybackEnd
-      setTimeout(() => player.seekTo(0), 100);
+      console.log(`[DEBUG] Audio finished for message ${messageId}, seeking to 0 and pausing`);
+      // Reset playback position to 0 and ensure it doesn't auto-play
+      player.seekTo(0);
+      // Explicitly pause to prevent auto-play
+      player.pause();
       onPlaybackEnd?.();
     }
-  }, [hasFinished, player, onPlaybackEnd]);
+  }, [hasFinished, player, onPlaybackEnd, messageId]);
   
   // Simplified pan responder for scrubbing
   const panResponder = useMemo(() => PanResponder.create({

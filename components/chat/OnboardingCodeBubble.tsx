@@ -1,22 +1,26 @@
-// components/chat/OnboardingCodeBubble.tsx - Code input bubble for job onboarding
-import React, { useState, useCallback, useRef } from 'react';
+// components/chat/OnboardingCodeBubble.tsx - Code input bubble with react-native-confirmation-code-field
+import { useLocalization } from '@/constants/localization';
+import { Ionicons } from '@expo/vector-icons';
+import { useMutation } from 'convex/react';
+import React, { useCallback, useRef, useState } from 'react';
 import {
-  View,
-  Text,
-  TextInput,
+  Alert,
+  Animated,
   Pressable,
   StyleSheet,
-  ViewStyle,
+  Text,
   TextStyle,
-  Animated,
-  Alert,
-  Keyboard,
+  View,
+  ViewStyle,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { useLocalization } from '@/constants/localization';
-import { Id } from '../../convex/_generated/dataModel';
-import { useMutation } from 'convex/react';
+import {
+  CodeField,
+  Cursor,
+  useBlurOnFulfill,
+  useClearByFocusCell,
+} from 'react-native-confirmation-code-field';
 import { api } from '../../convex/_generated/api';
+import { Id } from '../../convex/_generated/dataModel';
 
 // Design System - consistent with other bubbles
 const COLORS = {
@@ -115,34 +119,22 @@ export const OnboardingCodeBubble: React.FC<OnboardingCodeBubbleProps> = ({
   const [code, setCode] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [hasError, setHasError] = useState(false);
-  const inputRef = useRef<TextInput>(null);
   const shakeAnimation = useRef(new Animated.Value(0)).current;
 
   const validateCode = useMutation(api.messages.validateOnboardingCodeInChat);
+
+  // Use library hooks for better focus management
+  const ref = useBlurOnFulfill({ value: code, cellCount: maxLength });
+  const [props, getCellOnLayoutHandler] = useClearByFocusCell({
+    value: code,
+    setValue: setCode,
+  });
 
   // Format timestamp
   const formatTime = useCallback((timestamp: number): string => {
     const date = new Date(timestamp);
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   }, []);
-
-  // Handle code input with numeric validation
-  const handleCodeChange = useCallback((input: string) => {
-    // Only allow numeric characters
-    const numericInput = input.replace(/[^0-9]/g, '');
-    
-    // Limit to maxLength
-    const limitedInput = numericInput.slice(0, maxLength);
-    
-    setCode(limitedInput);
-    setHasError(false);
-
-    // Auto-submit when code reaches maxLength
-    if (limitedInput.length === maxLength) {
-      Keyboard.dismiss();
-      handleSubmitCode(limitedInput);
-    }
-  }, [maxLength]);
 
   // Shake animation for errors
   const triggerShakeAnimation = useCallback(() => {
@@ -156,9 +148,7 @@ export const OnboardingCodeBubble: React.FC<OnboardingCodeBubbleProps> = ({
   }, [shakeAnimation]);
 
   // Handle code submission
-  const handleSubmitCode = useCallback(async (codeToSubmit?: string) => {
-    const finalCode = codeToSubmit || code;
-    
+  const handleSubmitCode = useCallback(async (finalCode: string) => {
     if (finalCode.length < maxLength) {
       setHasError(true);
       triggerShakeAnimation();
@@ -180,11 +170,16 @@ export const OnboardingCodeBubble: React.FC<OnboardingCodeBubbleProps> = ({
       });
 
       if (!result.isValid) {
-        throw new Error('Invalid code. Please check the code and try again.');
+        setHasError(true);
+        triggerShakeAnimation();
+        Alert.alert('Invalid Code', 'Please check the code and try again.');
+        // Clear code for retry
+        setCode('');
+        return;
       }
 
       // Success - bubble will expire and disappear
-      setCode(''); // Clear input
+      setCode('');
     } catch (error) {
       console.error('Code validation failed:', error);
       setHasError(true);
@@ -193,55 +188,30 @@ export const OnboardingCodeBubble: React.FC<OnboardingCodeBubbleProps> = ({
       const errorMessage = error instanceof Error ? error.message : 'Invalid code. Please try again.';
       Alert.alert('Validation Error', errorMessage);
       
-      // Clear the code on error to allow re-entry
+      // Clear code for retry
       setCode('');
-      
-      // Refocus input after error
-      setTimeout(() => {
-        inputRef.current?.focus();
-      }, 500);
     } finally {
       setIsSubmitting(false);
     }
-  }, [code, maxLength, isSubmitting, disabled, validateCode, chatId, jobId, messageId, triggerShakeAnimation]);
+  }, [maxLength, isSubmitting, disabled, validateCode, chatId, jobId, messageId, triggerShakeAnimation]);
+
+  // Handle code change with auto-submit
+  const handleCodeChange = useCallback((text: string) => {
+    setCode(text);
+    setHasError(false);
+
+    // Auto-submit when complete
+    if (text.length === maxLength) {
+      handleSubmitCode(text);
+    }
+  }, [maxLength, handleSubmitCode]);
 
   // Manual submit button handler
   const handleManualSubmit = useCallback(() => {
     if (code.length === maxLength) {
-      handleSubmitCode();
+      handleSubmitCode(code);
     }
   }, [code, maxLength, handleSubmitCode]);
-
-  // Generate placeholder dots
-  const renderCodeInputDots = () => {
-    const dots = [];
-    for (let i = 0; i < maxLength; i++) {
-      const hasValue = i < code.length;
-      const isActive = i === code.length;
-      
-      dots.push(
-        <View
-          key={i}
-          style={[
-            styles.codeDot,
-            hasValue && styles.codeDotFilled,
-            isActive && styles.codeDotActive,
-            hasError && styles.codeDotError,
-          ]}
-        >
-          {hasValue && (
-            <Text style={[
-              styles.codeDigit,
-              hasError && styles.codeDigitError,
-            ]}>
-              {code[i]}
-            </Text>
-          )}
-        </View>
-      );
-    }
-    return dots;
-  };
 
   const containerStyle = [
     styles.container,
@@ -275,38 +245,38 @@ export const OnboardingCodeBubble: React.FC<OnboardingCodeBubbleProps> = ({
           {instruction}
         </Text>
 
-        {/* Code Input Area */}
-        <View style={styles.codeInputContainer}>
-          {/* Visual dots display */}
-          <View style={[styles.codeDotsContainer, isRTL && styles.codeDotsContainerRTL]}>
-            {renderCodeInputDots()}
-          </View>
-
-          {/* Hidden text input for numeric keypad */}
-          <TextInput
-            ref={inputRef}
-            style={styles.hiddenInput}
-            value={code}
-            onChangeText={handleCodeChange}
-            keyboardType="numeric"
-            maxLength={maxLength}
-            autoFocus={true}
-            caretHidden={true}
-            selection={{ start: code.length, end: code.length }}
-            editable={!disabled && !isSubmitting}
-            returnKeyType="done"
-            onSubmitEditing={handleManualSubmit}
-          />
-
-          {/* Tap area to focus input */}
-          <Pressable 
-            style={styles.tapArea}
-            onPress={() => inputRef.current?.focus()}
-            disabled={disabled || isSubmitting}
-          >
-            <View style={styles.tapAreaOverlay} />
-          </Pressable>
-        </View>
+        {/* Code Input Area - Using react-native-confirmation-code-field */}
+        <CodeField
+          ref={ref}
+          {...props}
+          value={code}
+          onChangeText={handleCodeChange}
+          cellCount={maxLength}
+          rootStyle={styles.codeFieldRoot}
+          keyboardType="number-pad"
+          textContentType="oneTimeCode"
+          autoFocus={true}
+          editable={!disabled && !isSubmitting}
+          renderCell={({ index, symbol, isFocused }) => (
+            <View
+              key={index}
+              onLayout={getCellOnLayoutHandler(index)}
+              style={[
+                styles.codeDot,
+                isFocused && styles.codeDotActive,
+                hasError && styles.codeDotError,
+                symbol && styles.codeDotFilled,
+              ]}
+            >
+              <Text style={[
+                styles.codeDigit,
+                hasError && styles.codeDigitError,
+              ]}>
+                {symbol || (isFocused ? <Cursor /> : null)}
+              </Text>
+            </View>
+          )}
+        />
 
         {/* Status message */}
         {hasError && (
@@ -327,7 +297,7 @@ export const OnboardingCodeBubble: React.FC<OnboardingCodeBubbleProps> = ({
           </View>
         )}
 
-        {/* Manual submit button (shown only when code is complete but not auto-submitted) */}
+        {/* Manual submit button */}
         {code.length === maxLength && !isSubmitting && !hasError && (
           <Pressable
             onPress={handleManualSubmit}
@@ -381,7 +351,8 @@ const styles = StyleSheet.create({
     padding: SPACING.lg,
     borderWidth: 2,
     borderColor: COLORS.primary + '20',
-    minWidth: 280,
+    width: '100%',
+    maxWidth: 340,
     ...SHADOWS.card,
   } as ViewStyle,
 
@@ -418,33 +389,22 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   } as TextStyle,
 
-  codeInputContainer: {
-    alignItems: 'center',
-    marginBottom: SPACING.md,
-    position: 'relative',
-  } as ViewStyle,
-
-  codeDotsContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: SPACING.md,
-  } as ViewStyle,
-
-  codeDotsContainerRTL: {
-    flexDirection: 'row-reverse',
+  codeFieldRoot: {
+    marginVertical: SPACING.md,
+    justifyContent: 'space-between',
+    maxWidth: 240,
   } as ViewStyle,
 
   codeDot: {
-    width: 40,
-    height: 48,
+    flex: 1,
+    aspectRatio: 0.8,
+    maxWidth: 38,
     borderRadius: 8,
     borderWidth: 2,
     borderColor: COLORS.gray300,
     backgroundColor: COLORS.gray50,
     alignItems: 'center',
     justifyContent: 'center',
-    position: 'relative',
   } as ViewStyle,
 
   codeDotFilled: {
@@ -472,27 +432,6 @@ const styles = StyleSheet.create({
   codeDigitError: {
     color: COLORS.error,
   } as TextStyle,
-
-  hiddenInput: {
-    position: 'absolute',
-    left: -9999,
-    opacity: 0,
-    width: 1,
-    height: 1,
-  } as TextStyle,
-
-  tapArea: {
-    position: 'absolute',
-    top: -10,
-    left: -10,
-    right: -10,
-    bottom: -10,
-  } as ViewStyle,
-
-  tapAreaOverlay: {
-    flex: 1,
-    backgroundColor: 'transparent',
-  } as ViewStyle,
 
   errorContainer: {
     flexDirection: 'row',

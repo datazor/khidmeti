@@ -318,7 +318,7 @@ export default function WorkerScreen() {
         </View>
         <View style={styles.statDivider} />
         <View style={styles.statItem}>
-          <Text style={styles.statValue}>${user?.balance || 0}</Text>
+          <Text style={styles.statValue}>{(user?.balance || 0).toFixed(2)} MRU</Text>
           <Text style={styles.statLabel}>Balance</Text>
         </View>
       </View>

@@ -325,6 +325,7 @@ const MessageBubble: React.FC<{
     return (
       <MessageErrorBoundary>
         <CompletionCodeBubble
+          key={`completion-${message._id}`}  // Stable prefix + message ID
           messageId={message._id}
           jobId={message.metadata?.jobId}
           instruction={message.content}
@@ -352,8 +353,11 @@ const MessageBubble: React.FC<{
 
   // Handle OnboardingCodeBubble for onboarding code input
   if (message.bubble_type === 'onboarding_code_input') {
+    console.log('OnboardingCodeBubble message object:', message._id, message.status, message.metadata);
+    
     return (
       <OnboardingCodeBubble
+        key={`onboarding-${message._id}`}  // Stable prefix + message ID
         messageId={message._id}
         jobId={message.metadata?.jobId}
         chatId={message.chat_id}
@@ -374,6 +378,7 @@ const MessageBubble: React.FC<{
     
     return (
       <CompletionCodeBubble
+        key={`completion-system-${message._id}`}  // Stable prefix + message ID
         messageId={message._id}
         jobId={message.metadata?.jobId}
         instruction={message.content}
@@ -671,10 +676,12 @@ export const MessageFeed: React.FC<MessageFeedProps> = ({
       return messages;
     }
     
-    const filteredMessages = getDisplayMessages(messages, user.user_type, activeChat);
+    const filtered = getDisplayMessages(messages, user.user_type, activeChat);
+    console.log('All messages:', messages.length, 'Displayed:', filtered.length);
+    console.log('Message IDs:', filtered.map(m => m._id));
+    console.log('Message types:', filtered.map(m => m.bubble_type));
     
-    
-    return filteredMessages;
+    return filtered;
   }, [messages, user, activeChat]);
   
   // Group filtered messages by sender
